@@ -55,7 +55,9 @@ jobs:
           lipo -archs "$LIB_DIR/libmpv.dylib" | tee artifacts/architectures.txt
           # Fushi BUG-3453: laced Matroska audio without DefaultDuration must get
           # per-frame timestamps; the patch's trace message proves it is built in.
-          strings "$LIB_DIR/libmpv.dylib" | grep -Fq 'without DefaultDuration'
+          # grep -q would exit early and make strings fail under pipefail.
+          strings "$LIB_DIR/libmpv.dylib" > artifacts/libmpv.strings.txt
+          grep -Fq 'without DefaultDuration' artifacts/libmpv.strings.txt
       - uses: actions/upload-artifact@v7
         if: always()
         with:
