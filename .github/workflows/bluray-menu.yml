@@ -1,7 +1,7 @@
 name: Blu-ray menu native artifacts
 on:
   push:
-    branches: [codex/bluray-disc-menu]
+    branches: [codex/bluray-disc-menu, fushi/mkv-lace]
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,6 +53,9 @@ jobs:
           DYLD_LIBRARY_PATH="$LIB_DIR" python3 tools/probe_libmpv.py "$LIB_DIR/libmpv.dylib" > artifacts/probe.json
           python3 -c 'import json; assert json.load(open("artifacts/probe.json"))["disc_navigation_state_json_property"]'
           lipo -archs "$LIB_DIR/libmpv.dylib" | tee artifacts/architectures.txt
+          # Fushi BUG-3453: laced Matroska audio without DefaultDuration must get
+          # per-frame timestamps; the patch's trace message proves it is built in.
+          strings "$LIB_DIR/libmpv.dylib" | grep -Fq 'without DefaultDuration'
       - uses: actions/upload-artifact@v7
         if: always()
         with:
