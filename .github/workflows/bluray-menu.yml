@@ -58,6 +58,9 @@ jobs:
           # grep -q would exit early and make strings fail under pipefail.
           strings "$LIB_DIR/libmpv.dylib" > artifacts/libmpv.strings.txt
           grep -Fq 'without DefaultDuration' artifacts/libmpv.strings.txt
+          # Fushi BUG-3454: the recorder must derive the missing DTS of Matroska
+          # video, or dump-cache loses every B-frame.
+          grep -Fq 'Deriving missing DTS' artifacts/libmpv.strings.txt
       - uses: actions/upload-artifact@v7
         if: always()
         with:

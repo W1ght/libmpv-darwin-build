@@ -25,6 +25,7 @@ let
     patch -p1 <${../../../patches/mpv-gl-dovi-p5-menu.patch}
     patch -p1 <${../../../patches/disc-navigation-state.patch}
     patch -p1 <${../../../patches/mpv-mkv-laced-audio-timestamps.patch}
+    patch -p1 <${../../../patches/mpv-recorder-video-dts.patch}
     cp -r . $out
   '';
 in pkgs.stdenvNoCC.mkDerivation {
