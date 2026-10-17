@@ -11,4 +11,9 @@ in
     os = oses.macos;
     arch = archs.universal;
   }
+  # Fushi: Apple Silicon only (the unified FFmpeg frameworks are arm64).
+  {
+    os = oses.macos;
+    arch = archs.arm64;
+  }
 ]

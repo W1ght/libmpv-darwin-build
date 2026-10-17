@@ -1,0 +1,87 @@
+name: Unified FFmpeg libmpv frameworks
+# libmpv linked against Fushi's unified FFmpeg frameworks
+# (nix/packages/mk-pkg-ffmpeg-external, pinned in packages.lock.nix).
+on:
+  push:
+    branches: [fushi/unified-ffmpeg]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: unified-ffmpeg-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frameworks:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Fushi ships Apple Silicon only on macOS; iOS keeps device + simulator.
+          - {target: macos, arch: arm64}
+          - {target: ios, arch: universal}
+    runs-on: macos-15
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@v22
+        with:
+          extra-conf: |
+            sandbox = true
+            sandbox-fallback = false
+            max-jobs = 2
+            cores = 3
+      - name: Build frameworks
+        shell: bash
+        run: |
+          set -euo pipefail
+          XCODE_PATH=$(xcode-select -p | sed 's,/Contents/Developer$,,')
+          make XCODE_PATH="$XCODE_PATH" VERSION=unified-${GITHUB_SHA::12} \
+            TARGET=mk-out-archive-xcframeworks-${{ matrix.target }}-${{ matrix.arch }}-video-full 2>&1 | tee build.log
+          mkdir artifacts
+          cp result/*.tar.gz artifacts/
+          shasum -a 256 artifacts/*.tar.gz > artifacts/SHA256SUMS
+          # Unified FFmpeg: no FFmpeg framework of its own may be produced.
+          if tar -tzf artifacts/*.tar.gz | grep -Eiq '/(Avcodec|Avformat|Avutil|libavcodec)\.xcframework/'; then
+            echo "an FFmpeg framework was packaged; libmpv must use the unified FFmpeg" >&2
+            exit 3
+          fi
+      - name: Probe actual host library
+        if: matrix.target == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          XCODE_PATH=$(xcode-select -p | sed 's,/Contents/Developer$,,')
+          make XCODE_PATH="$XCODE_PATH" VERSION=unified-${GITHUB_SHA::12} \
+            TARGET=mk-out-libs-macos-arm64-video-full
+          LIB_DIR="$RUNNER_TEMP/libmpv-probe"
+          mkdir -p "$LIB_DIR"
+          cp -R result/. "$LIB_DIR/"
+          chmod -R u+w "$LIB_DIR"
+          # The unified FFmpeg frameworks libmpv links (same pin as the nix build).
+          FW_DIR="$RUNNER_TEMP/unified-ffmpeg"
+          mkdir -p "$FW_DIR"
+          url=$(nix eval --raw --impure --expr '(import ./packages.lock.nix).ffmpeg-unified.macos.url')
+          sha=$(nix eval --raw --impure --expr '(import ./packages.lock.nix).ffmpeg-unified.macos.sha256')
+          curl -fsSL "$url" -o "$RUNNER_TEMP/ffmpeg-unified-macos.tar.gz"
+          echo "$sha  $RUNNER_TEMP/ffmpeg-unified-macos.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/ffmpeg-unified-macos.tar.gz" --strip-components=1 -C "$FW_DIR"
+          for xcf in "$FW_DIR"/lib*.xcframework; do cp -R "$xcf"/macos-arm64/*.framework "$FW_DIR"/; done
+          otool -L "$LIB_DIR/libmpv.dylib" | tee artifacts/libmpv.otool.txt
+          grep -q '@rpath/libavcodec.framework/libavcodec' artifacts/libmpv.otool.txt
+          # install_name_tool rewrites invalidate ad-hoc arm64 signatures.
+          for library in "$LIB_DIR"/*.dylib; do codesign --force --sign - "$library"; done
+          DYLD_LIBRARY_PATH="$LIB_DIR" DYLD_FRAMEWORK_PATH="$FW_DIR" \
+            python3 tools/probe_libmpv.py "$LIB_DIR/libmpv.dylib" > artifacts/probe.json
+          python3 -c 'import json; assert json.load(open("artifacts/probe.json"))["disc_navigation_state_json_property"]'
+          lipo -archs "$LIB_DIR/libmpv.dylib" | tee artifacts/architectures.txt
+          strings "$LIB_DIR/libmpv.dylib" > artifacts/libmpv.strings.txt
+          grep -Fq 'without DefaultDuration' artifacts/libmpv.strings.txt
+          grep -Fq 'Deriving missing DTS' artifacts/libmpv.strings.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: unified-${{ matrix.target }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            artifacts/*
+            build.log

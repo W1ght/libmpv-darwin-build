@@ -63,6 +63,7 @@ find ${DEPS} -name "*.dylib" -type f | while read DYLIB; do
         cut -d " " -f11 |
         tail -n +2 |
         grep "@rpath" |
+        grep -v '\.framework/' |
         while read DEP; do
             DEP_NAME=$(basename $DEP .dylib | sed 's/\.[0-9]*$//' | sed 's/^lib//')
             DEP_NAME="$(tr '[:lower:]' '[:upper:]' <<<${DEP_NAME:0:1})${DEP_NAME:1}"

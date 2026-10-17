@@ -35,7 +35,8 @@ in pkgs.stdenvNoCC.mkDerivation {
   dontUnpack = true;
   nativeBuildInputs = [ pkgs.meson pkgs.ninja pkgs.pkg-config pkgs.python3 xctoolchainLipo ];
   buildInputs = builtins.map (path: callPackage path { }) [
-    ../mk-pkg-ffmpeg/default.nix
+    # Fushi unified FFmpeg (prebuilt frameworks shared with card mining).
+    ../mk-pkg-ffmpeg-external/default.nix
     ../mk-pkg-libass/default.nix
     ../mk-pkg-uchardet/default.nix
     ../mk-pkg-libplacebo/default.nix

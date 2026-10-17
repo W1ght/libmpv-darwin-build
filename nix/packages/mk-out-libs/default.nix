@@ -53,11 +53,12 @@ if arch != archs.universal then
     libvpx = callPackage ../mk-pkg-libvpx/default.nix { };
     libx264 = callPackage ../mk-pkg-libx264/default.nix { };
 
+    # Fushi unified FFmpeg: FFmpeg (and its private deps mbedtls / dav1d /
+    # libxml2) is NOT packaged here. Mpv links the app's shared FFmpeg
+    # frameworks (mk-pkg-ffmpeg-external), which the app bundles once.
     deps =
       [
         mpv
-        ffmpeg
-        mbedtls
       ]
       ++ pkgs.lib.optionals (flavor == flavors.encodersgpl) [
         fftoolsFfi
@@ -67,8 +68,6 @@ if arch != archs.universal then
       ++ pkgs.lib.optionals (variant == variants.video) [
         libplacebo
         libbluray
-        dav1d
-        libxml2
         uchardet
         libass
         harfbuzz
@@ -128,8 +127,10 @@ if arch != archs.universal then
       done
 
       # Change dylib's dep path @rpath/libfoo.99.dylib -> @rpath/libfoo.dylib
+      # (framework references, i.e. the unified FFmpeg's
+      # @rpath/libavcodec.framework/libavcodec, are left untouched)
       for file in ./build/lib*.dylib; do
-        deps=$(otool -L $file | tail -n +3 | sed -n 's|.*\(@rpath/[^ ]*\).*|\1|p')
+        deps=$(otool -L $file | tail -n +3 | sed -n 's|.*\(@rpath/[^ ]*\).*|\1|p' | grep -v '\.framework/' || true)
         for dep in $deps; do
           name=$(echo $dep | sed -n 's|@rpath/\(lib[^.]*\).*|\1.dylib|p')
           install_name_tool -change $dep @rpath/$name $file

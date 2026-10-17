@@ -1,4 +1,18 @@
 {
+  # Fushi unified FFmpeg (hajisensai/fushi tool/ffmpeg-unified): prebuilt FFmpegKitNext
+  # xcframeworks that libmpv links instead of a private FFmpeg. Filled in from the
+  # release assets of the fushi ffmpeg-unified-mobile workflow run.
+  ffmpeg-unified = {
+    version = "9.0.1";
+    ios = {
+      url = "https://github.com/hajisensai/libmpv-darwin-build/releases/download/unified-ffmpeg-9.0.1-r1/ffmpeg-unified-9.0.1-ios-xcframeworks.tar.gz";
+      sha256 = "e2bdd97efc1416f511299d894e6107d860c85d75d1afd68c8751daf6407bb1e4";
+    };
+    macos = {
+      url = "https://github.com/hajisensai/libmpv-darwin-build/releases/download/unified-ffmpeg-9.0.1-r1/ffmpeg-unified-9.0.1-macos-xcframeworks.tar.gz";
+      sha256 = "66ccad7ea913b8b2defc721f925d0b1df0743a1a6fd6db2aa36d3e32583e4ca1";
+    };
+  };
   dav1d = {
     version = "1.2.1";
     url = "https://download.videolan.org/pub/videolan/dav1d/1.2.1/dav1d-1.2.1.tar.xz";
